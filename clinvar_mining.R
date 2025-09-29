@@ -88,8 +88,10 @@ prioritized_pathogenic <- pathogenic_candidates %>%
 
 # View sorted results and optionally save to file
 # print(head(prioritized_pathogenic, 20))
-# write_csv(prioritized_pathogenic,
-#           "prioritized_pathogenic_variants_by_review_status.csv")
+# write_csv(
+#   prioritized_pathogenic,
+#   "prioritized_pathogenic_variants_by_review_status.csv"
+# )
 
 # Count and display diseases associated with pathogenic candidates
 # disease_counts <- pathogenic_candidates %>% count(CLNDN, sort = TRUE)
@@ -111,7 +113,7 @@ allele_gene <- read_tsv("allele_gene.txt.gz", show_col_types = FALSE)
 # glimpse(allele_gene)
 
 # Integrate gene and clinical summaries with pathogenic variants data
-pathogenic_gene_summary <- prioritized_pathogenic %>%
+pathogenic_summary <- prioritized_pathogenic %>%
   left_join(
     allele_gene %>%
       group_by(ID = as.character(`#AlleleID`)) %>%
@@ -167,11 +169,13 @@ pathogenic_gene_summary <- prioritized_pathogenic %>%
   mutate(Is_MultiGene = Gene_Count > 1) # Flag variants affecting multiple genes
 
 # Save pathogenic summary with comprehensive gene and clinical annotations
-# write_csv(pathogenic_summary, 
-#           "pathogenic_variants_full_gene_clinical_summary.csv")
+# write_csv(
+#   pathogenic_summary,
+#   "pathogenic_variants_full_gene_clinical_summary.csv"
+# )
 
-# Apply final filters and priority sorting for high-confidence targets
-high_priority_targets <- pathogenic_summary %>%
+# Apply filters and priority sorting for high-confidence targets
+priority_targets <- pathogenic_summary %>%
   filter(
     grepl("Pathogenic|Likely_pathogenic", CLNSIG), # Pathogenicity filter
     grepl("germline", Origins)                     # Germline origin filter
@@ -183,16 +187,54 @@ high_priority_targets <- pathogenic_summary %>%
     CLNREVSTAT               # Finally by review status reliability
   )
 
-# Save high-priority targets for RNA editing therapy
-# write_csv(high_priority_targets, 
-#           "high_priority_RNA_editing_therapeutic_targets.csv")
-
 # Check how many candidate sites were found
-# print(paste("Number of candidate targets found after correction:",
-#             nrow(high_priority_targets)))
+# print(
+#   paste(
+#     "Number of candidate targets found after correction:", 
+#     nrow(priority_targets)
+#   )
+# )
 
 # Check the coverage of GRCh38 coordinates
-# GRCh_stats <- high_priority_targets %>%
+# GRCh_stats <- priority_targets %>%
 #   count(Has_GRCh38, Has_GRCh37)
 # print("Genome assembly version coverage:")
 # print(GRCh_stats)
+
+# Check the unavailable phenotype status
+# phenotype_stats <- priority_targets %>%
+#   filter(
+#     Phenotypes %in% c("not_provided", "not specified", "not provided", "-")
+#   )
+# print("Unavailable phenotype_stats coverage:")
+# print(nrow(phenotype_stats))
+
+# Apply final filters
+high_priority_targets <- priority_targets %>%
+  filter(
+    !is.na(GRCh38_Chromosome),
+    !Phenotypes %in% c("not_provided", "not specified", "not provided", "-"),
+    Submitter_Count > 15
+  )
+
+# How many targets filtered
+# print(
+#   paste(
+#     "Number of targets filtered:", 
+#     nrow(priority_targets) - nrow(high_priority_targets)
+#   )
+# )
+
+# How many targets remained
+# print(
+#   paste(
+#     "Number of targets saved finally:", 
+#     nrow(high_priority_targets)
+#   )
+# )
+
+# Save high-priority targets for RNA editing therapy
+# write_csv(
+#   high_priority_targets,
+#   "high_priority_RNA_editing_therapeutic_targets.csv"
+# )
